@@ -13,6 +13,7 @@ use App\Shop\Tools\UploadableTrait;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 
 class CategoryRepository extends BaseRepository implements CategoryRepositoryInterface
 {
@@ -56,7 +57,7 @@ class CategoryRepository extends BaseRepository implements CategoryRepositoryInt
                 $slug = str_slug($params['name']);
             }
 
-            if (isset($params['cover']) && anInstanceOf(UploadedFile::class)) {
+            if (isset($params['cover']) && ($params['cover'] instanceof UploadedFile)) {
                 $cover = $this->uploadOne($params['cover'], 'categories');
             }
 
@@ -88,7 +89,7 @@ class CategoryRepository extends BaseRepository implements CategoryRepositoryInt
         $collection = collect($params)->except('_token');
         $slug = str_slug($collection->get('name'));
 
-        if (isset($params['cover']) && anInstanceOf(UploadedFile::class)) {
+        if (isset($params['cover']) && ($params['cover'] instanceof UploadedFile)) {
             $cover = $this->uploadOne($params['cover'], 'categories');
         }
 
@@ -142,11 +143,9 @@ class CategoryRepository extends BaseRepository implements CategoryRepositoryInt
      *
      * @return mixed
      */
-    public function findProducts()
+    public function findProducts() : Collection
     {
-        return collect($this->model->products)->map(function (Product $product) {
-            return $this->transformProduct($product);
-        })->sortByDesc('id');
+        return $this->model->products;
     }
 
     /**
@@ -190,18 +189,6 @@ class CategoryRepository extends BaseRepository implements CategoryRepositoryInt
         } catch (ModelNotFoundException $e) {
             throw new CategoryNotFoundException($e->getMessage());
         }
-    }
-
-    /**
-     * Find products under a specific category
-     *
-     * @param int $id
-     * @return mixed
-     */
-    public function findProductsInCategory(int $id)
-    {
-        $category = $this->findCategoryById($id);
-        return $category->products;
     }
 
     /**
