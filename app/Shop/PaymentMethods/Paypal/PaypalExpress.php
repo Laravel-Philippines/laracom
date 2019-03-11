@@ -2,17 +2,20 @@
 
 namespace App\Shop\PaymentMethods\Paypal;
 
+use App\Shop\Addresses\Address;
 use App\Shop\Carts\ShoppingCart;
 use App\Shop\PaymentMethods\Paypal\Exceptions\PaypalRequestError;
 use Illuminate\Support\Collection;
 use PayPal\Api\Amount;
 use PayPal\Api\Details;
+use PayPal\Api\InvoiceAddress;
 use PayPal\Api\Item;
 use PayPal\Api\ItemList;
 use PayPal\Api\Payer;
 use PayPal\Api\Payment;
 use PayPal\Api\PaymentExecution;
 use PayPal\Api\RedirectUrls;
+use PayPal\Api\ShippingAddress;
 use PayPal\Api\Transaction;
 use PayPal\Exception\PayPalConnectionException;
 use PayPal\Auth\OAuthTokenCredential;
@@ -34,17 +37,10 @@ class PaypalExpress
     private $itemList;
     private $others;
 
-    public function __construct(
-        $clientId,
-        $clientSecret,
-        $mode,
-        $url
-    ) {
+    public function __construct($clientId, $clientSecret, $mode)
+    {
         $apiContext = new ApiContext(
-            new OAuthTokenCredential(
-                $clientId,
-                $clientSecret
-            )
+            new OAuthTokenCredential($clientId, $clientSecret)
         );
 
         $apiContext->setConfig(
@@ -74,19 +70,16 @@ class PaypalExpress
 
     public function setPayer()
     {
-        // ### Payer
-        // A resource representing a Payer that funds a payment
-        // For direct credit card payments, set payment method
-        // to 'credit_card' and add an array of funding instruments.
         $payer = new Payer();
         $payer->setPaymentMethod('paypal');
         $this->payer = $payer;
     }
 
+    /**
+     * @param Collection $products
+     */
     public function setItems(Collection $products)
     {
-        // ### Itemized information
-        // (Optional) Lets you specify item wise information
         $items = [];
         foreach ($products as $product) {
             $item = new Item();
@@ -104,6 +97,11 @@ class PaypalExpress
         $this->itemList = $itemList;
     }
 
+    /**
+     * @param $subtotal
+     * @param int $tax
+     * @param $shipping
+     */
     public function setOtherFees($subtotal, $tax = 0, $shipping)
     {
         $details = new Details();
@@ -114,12 +112,11 @@ class PaypalExpress
         $this->others = $details;
     }
 
+    /**
+     * @param $amt
+     */
     public function setAmount($amt)
     {
-        // ### Amount
-        // Lets you specify a payment amount.
-        // You can also specify additional details
-        // such as shipping, tax.
         $amount = new Amount();
         $amount->setCurrency(ShoppingCart::$defaultCurrency)
             ->setTotal($amt)
@@ -130,26 +127,25 @@ class PaypalExpress
 
     public function setTransactions()
     {
-        // ### Transaction
-        // A transaction defines the contract of a
-        // payment - what is the payment for and who
-        // is fulfilling it.
         $transaction = new Transaction();
         $transaction->setAmount($this->amount)
             ->setItemList($this->itemList)
-            ->setDescription("Payment via Paypal")
+            ->setDescription('Payment via Paypal')
             ->setInvoiceNumber(uniqid());
 
         $this->transactions = $transaction;
     }
 
+    /**
+     * @param string $returnUrl
+     * @param string $cancelUrl
+     *
+     * @return Payment
+     */
     public function createPayment(string $returnUrl, string $cancelUrl)
     {
-        // ### Payment
-        // A Payment Resource; create one using
-        // the above types and intent set to sale 'sale'
         $payment = new Payment();
-        $payment->setIntent("sale")
+        $payment->setIntent('sale')
             ->setPayer($this->payer)
             ->setTransactions([$this->transactions]);
 
@@ -176,5 +172,39 @@ class PaypalExpress
         $execution = new PaymentExecution();
         $execution->setPayerId($payerID);
         return $execution;
+    }
+
+    /**
+     * @param Address $address
+     * @return InvoiceAddress
+     */
+    public function setBillingAddress(Address $address)
+    {
+        $billingAddress = new InvoiceAddress();
+        $billingAddress->line1 = $address->address_1;
+        $billingAddress->line2 = $address->address_2;
+        $billingAddress->city = $address->city;
+        $billingAddress->state = $address->state_code;
+        $billingAddress->postal_code = $address->zip;
+        $billingAddress->country_code = $address->country->iso;
+
+        return $billingAddress;
+    }
+
+    /**
+     * @param Address $address
+     * @return ShippingAddress
+     */
+    public function setShippingAddress(Address $address)
+    {
+        $shipping = new ShippingAddress();
+        $shipping->line1 = $address->address_1;
+        $shipping->line2 = $address->address_2;
+        $shipping->city = $address->city;
+        $shipping->state = $address->state_code;
+        $shipping->postal_code = $address->zip;
+        $shipping->country_code = $address->country->iso;
+
+        return $shipping;
     }
 }

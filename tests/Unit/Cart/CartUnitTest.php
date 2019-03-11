@@ -5,10 +5,46 @@ namespace Tests\Unit\Cart;
 use App\Shop\Carts\Exceptions\ProductInCartNotFoundException;
 use App\Shop\Carts\Repositories\CartRepository;
 use App\Shop\Carts\ShoppingCart;
+use Gloudemans\Shoppingcart\CartItem;
+use Gloudemans\Shoppingcart\Exceptions\InvalidRowIDException;
 use Tests\TestCase;
 
 class CartUnitTest extends TestCase
 {
+    /** @test */
+    public function it_can_retrieve_the_saved_cart_from_database()
+    {
+        $cartRepo = new CartRepository(new ShoppingCart);
+        $cartRepo->addToCart($this->product, 1);
+        $cartRepo->saveCart($this->customer);
+
+        // retrieve the saved cart from database
+        $cartRepo2 = new CartRepository(new ShoppingCart);
+        $cartRepo2->openCart($this->customer);
+
+        $savedCartItem = $cartRepo->getCartItems()->first();
+        $cartItemFromDb = $cartRepo2->getCartItems()->first();
+
+        $this->assertInstanceOf(CartItem::class, $cartItemFromDb);
+        $this->assertEquals($savedCartItem->name, $cartItemFromDb->name);
+        $this->assertEquals($savedCartItem->price, $cartItemFromDb->price);
+        $this->assertEquals($savedCartItem->qty, $cartItemFromDb->qty);
+    }
+
+    /** @test */
+    public function it_can_store_the_cart_in_database()
+    {
+        $cartRepo = new CartRepository(new ShoppingCart);
+        $cartRepo->addToCart($this->product, 1);
+        $cartRepo->saveCart($this->customer);
+
+        $this->assertDatabaseHas('shoppingcart', [
+            'identifier' => $this->customer->email,
+            'instance' => 'default',
+            'content' => serialize($cartRepo->getCartItems())
+        ]);
+    }
+
     /** @test */
     public function it_can_clear_out_your_cart()
     {
@@ -20,7 +56,7 @@ class CartUnitTest extends TestCase
         $cartRepo->clearCart();
         $this->assertCount(0, $cartRepo->getCartItems());
     }
-    
+
     /** @test */
     public function it_returns_all_the_items_in_the_cart()
     {
@@ -36,7 +72,7 @@ class CartUnitTest extends TestCase
             $this->assertEquals($qty, $list->qty);
         }
     }
-    
+
     /** @test */
     public function it_can_show_the_specific_item_in_the_cart()
     {
@@ -68,7 +104,7 @@ class CartUnitTest extends TestCase
 
         $this->assertEquals(3, $cartRepo->findItem($rowId[0])->qty);
     }
-    
+
     /** @test */
     public function it_can_return_the_total_value_of_the_items_in_the_cart()
     {
@@ -81,7 +117,7 @@ class CartUnitTest extends TestCase
 
         $this->assertEquals($grandTotal, $total);
     }
-    
+
     /** @test */
     public function it_can_return_the_sub_total_of_the_items()
     {
@@ -102,7 +138,7 @@ class CartUnitTest extends TestCase
 
         $this->assertEquals(1, $count);
     }
-    
+
     /** @test */
     public function it_errors_when_removing_item_in_the_cart_with_cart_rowID_not_existing()
     {
@@ -122,14 +158,12 @@ class CartUnitTest extends TestCase
         $items = $cartRepo->getCartItems();
 
         foreach ($items as $item) {
+            $this->expectException(InvalidRowIDException::class);
             $cartRepo->removeToCart($item->rowId);
-        }
-
-        foreach ($items as $item) {
-            $this->assertNotEquals($this->product->id, $item->id);
+            $cartRepo->findItem($item->rowId);
         }
     }
-    
+
     /** @test */
     public function it_can_add_to_cart()
     {

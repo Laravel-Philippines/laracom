@@ -28,7 +28,7 @@ class CategoryUnitTest extends TestCase
             $this->assertEquals($child->id, $c->id);
         }
     }
-    
+
     /** @test */
     public function it_can_get_the_parent_category()
     {
@@ -50,13 +50,13 @@ class CategoryUnitTest extends TestCase
     {
         $category = new CategoryRepository($this->category);
         $category->syncProducts([$this->product->id]);
-        $products = $category->findProductsInCategory($this->category->id);
+        $products = $category->findProducts();
 
         foreach ($products as $product) {
             $this->assertEquals($this->product->id, $product->id);
         }
     }
-    
+
     /** @test */
     public function it_errors_looking_for_the_category_if_the_slug_is_not_found()
     {
@@ -65,7 +65,7 @@ class CategoryUnitTest extends TestCase
         $category = new CategoryRepository($this->category);
         $category->findCategoryBySlug(['slug' => 'unknown']);
     }
-    
+
     /** @test */
     public function it_can_get_the_category_by_slug()
     {
@@ -83,7 +83,7 @@ class CategoryUnitTest extends TestCase
 
         $this->assertDatabaseHas('categories', ['cover' => null]);
     }
-    
+
     /** @test */
     public function it_can_detach_the_products()
     {
@@ -92,10 +92,7 @@ class CategoryUnitTest extends TestCase
         $category->detachProducts();
 
         $products = $category->findProducts();
-
-        foreach ($products as $product) {
-            $this->assertNotEquals($this->product->name, $product->name);
-        }
+        $this->assertCount(0, $products);
     }
 
     /** @test */
@@ -110,7 +107,6 @@ class CategoryUnitTest extends TestCase
             $this->assertEquals($this->product->name, $product->name);
         }
     }
-
 
     /** @test */
     public function it_errors_creating_the_category_when_required_fields_are_not_passed()
@@ -133,17 +129,23 @@ class CategoryUnitTest extends TestCase
     /** @test */
     public function it_can_list_all_the_categories()
     {
-        $category = new CategoryRepository(new Category);
-        $list = $category->listCategories();
+        $category = factory(Category::class)->create();
+        $attributes = $category->getFillable();
 
-        $this->arrayHasKey(array_keys($list->all()));
+        $categoryRepo = new CategoryRepository(new Category);
+        $categories = $categoryRepo->listCategories();
+
+        $categories->each(function ($category, $key) use ($attributes) {
+            foreach ($category->getFillable() as $key => $value) {
+                $this->assertArrayHasKey($key, $attributes);
+            }
+        });
     }
 
     /** @test */
     public function it_errors_finding_a_category()
     {
         $this->expectException(CategoryNotFoundException::class);
-        $this->expectExceptionMessage('Category not found.');
 
         $category = new CategoryRepository(new Category);
         $category->findCategoryById(999);
@@ -214,5 +216,56 @@ class CategoryUnitTest extends TestCase
         $this->assertEquals($params['status'], $created->status);
         $this->assertEquals($params['parent'], $created->parent_id);
         $this->assertEquals($params['cover'], $cover);
+    }
+
+    /** @test */
+    public function it_can_create_root_category()
+    {
+        $params = [
+            'name' => 'Boys',
+            'slug' => 'boys',
+            'description' => $this->faker->paragraph,
+            'status' => 1
+        ];
+
+        $category = new CategoryRepository(new Category);
+        $created = $category->createCategory($params);
+
+        $this->assertTrue($created->isRoot());
+    }
+
+    /** @test */
+    public function it_can_update_child_category_to_root_category()
+    {
+        // suppose to have a child category
+        [$child, $parent] = factory(Category::class, 2)->create();
+        $child->parent()->associate($parent)->save();
+
+        // send params without parent
+        $category = new CategoryRepository($child);
+        $updated = $category->updateCategory([
+            'name' => 'Boys',
+            'slug' => 'boys'
+        ]);
+
+        // check if updated category is root
+        $this->assertTrue($updated->isRoot());
+    }
+
+    /** @test */
+    public function it_can_update_root_category_to_child()
+    {
+        [$child, $parent] = factory(Category::class, 2)->create();
+
+        // set parent category via repository
+        $category = new CategoryRepository($child);
+        $updated = $category->updateCategory([
+            'name' => 'Boys',
+            'slug' => 'boys',
+            'parent' => $parent->id
+        ]);
+
+        // check if updated category is root
+        $this->assertTrue( $updated->parent->is($parent) );
     }
 }

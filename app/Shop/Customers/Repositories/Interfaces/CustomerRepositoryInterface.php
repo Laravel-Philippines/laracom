@@ -3,7 +3,7 @@
 namespace App\Shop\Customers\Repositories\Interfaces;
 
 use App\Shop\Addresses\Address;
-use App\Shop\Base\Interfaces\BaseRepositoryInterface;
+use Jsdecena\Baserepo\BaseRepositoryInterface;
 use App\Shop\Customers\Customer;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as Support;
@@ -27,4 +27,6 @@ interface CustomerRepositoryInterface extends BaseRepositoryInterface
     public function findOrders() : Collection;
 
     public function searchCustomer(string $text) : Collection;
+
+    public function charge(int $amount, array $options);
 }

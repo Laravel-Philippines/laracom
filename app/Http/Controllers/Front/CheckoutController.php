@@ -5,102 +5,132 @@ namespace App\Http\Controllers\Front;
 use App\Shop\Addresses\Repositories\Interfaces\AddressRepositoryInterface;
 use App\Shop\Cart\Requests\CartCheckoutRequest;
 use App\Shop\Carts\Repositories\Interfaces\CartRepositoryInterface;
-use App\Shop\Carts\Transformers\ShoppingCartTransformer;
+use App\Shop\Carts\Requests\PayPalCheckoutExecutionRequest;
+use App\Shop\Carts\Requests\StripeExecutionRequest;
 use App\Shop\Couriers\Repositories\Interfaces\CourierRepositoryInterface;
+use App\Shop\Customers\Customer;
+use App\Shop\Customers\Repositories\CustomerRepository;
 use App\Shop\Customers\Repositories\Interfaces\CustomerRepositoryInterface;
-use App\Shop\OrderDetails\OrderProduct;
-use App\Shop\OrderDetails\Repositories\OrderProductRepository;
-use App\Shop\Orders\Order;
 use App\Shop\Orders\Repositories\Interfaces\OrderRepositoryInterface;
-use App\Shop\PaymentMethods\Exceptions\PaymentMethodNotFoundException;
 use App\Shop\PaymentMethods\Paypal\Exceptions\PaypalRequestError;
-use App\Shop\PaymentMethods\Paypal\PaypalExpress;
-use App\Shop\PaymentMethods\Repositories\Interfaces\PaymentMethodRepositoryInterface;
-use App\Shop\Products\Product;
+use App\Shop\PaymentMethods\Paypal\Repositories\PayPalExpressCheckoutRepository;
+use App\Shop\PaymentMethods\Stripe\Exceptions\StripeChargingErrorException;
+use App\Shop\PaymentMethods\Stripe\StripeRepository;
 use App\Shop\Products\Repositories\Interfaces\ProductRepositoryInterface;
-use App\Shop\Products\Repositories\ProductRepository;
+use App\Shop\Products\Transformations\ProductTransformable;
+use App\Shop\Shipping\ShippingInterface;
 use Exception;
 use App\Http\Controllers\Controller;
-use Gloudemans\Shoppingcart\CartItem;
+use Gloudemans\Shoppingcart\Facades\Cart;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Auth;
-use PayPal\Api\Payment;
+use Illuminate\Support\Facades\Log;
 use PayPal\Exception\PayPalConnectionException;
-use Ramsey\Uuid\Uuid;
 
 class CheckoutController extends Controller
 {
+    use ProductTransformable;
+
+    /**
+     * @var CartRepositoryInterface
+     */
     private $cartRepo;
+
+    /**
+     * @var CourierRepositoryInterface
+     */
     private $courierRepo;
-    private $paymentRepo;
+
+    /**
+     * @var AddressRepositoryInterface
+     */
     private $addressRepo;
+
+    /**
+     * @var CustomerRepositoryInterface
+     */
     private $customerRepo;
+
+    /**
+     * @var ProductRepositoryInterface
+     */
     private $productRepo;
+
+    /**
+     * @var OrderRepositoryInterface
+     */
     private $orderRepo;
-    private $paypal;
-    private $cartProducts;
-    private $courierId;
+
+    /**
+     * @var PayPalExpressCheckoutRepository
+     */
+    private $payPal;
+
+    /**
+     * @var ShippingInterface
+     */
+    private $shippingRepo;
 
     public function __construct(
         CartRepositoryInterface $cartRepository,
         CourierRepositoryInterface $courierRepository,
-        PaymentMethodRepositoryInterface $paymentMethodRepository,
         AddressRepositoryInterface $addressRepository,
         CustomerRepositoryInterface $customerRepository,
         ProductRepositoryInterface $productRepository,
-        OrderRepositoryInterface $orderRepository
+        OrderRepositoryInterface $orderRepository,
+        ShippingInterface $shipping
     ) {
-        $this->middleware('checkout');
-
         $this->cartRepo = $cartRepository;
         $this->courierRepo = $courierRepository;
-        $this->paymentRepo = $paymentMethodRepository;
         $this->addressRepo = $addressRepository;
         $this->customerRepo = $customerRepository;
         $this->productRepo = $productRepository;
         $this->orderRepo = $orderRepository;
-        $this->paypal = new PaypalExpress(
-            config('paypal.client_id'),
-            config('paypal.client_secret'),
-            config('paypal.mode'),
-            config('paypal.api_url')
-
-        );
-
-        $this->cartProducts = new ShoppingCartTransformer($this->cartRepo->getCartItems());
+        $this->payPal = new PayPalExpressCheckoutRepository;
+        $this->shippingRepo = $shipping;
     }
 
     /**
      * Display a listing of the resource.
      *
+     * @param Request $request
+     *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
-        $customer = $this->customerRepo->findCustomerById($this->loggedUser()->id);
+        $products = $this->cartRepo->getCartItems();
+        $customer = $request->user();
+        $rates = null;
+        $shipment_object_id = null;
 
-        $this->courierId = request()->session()->get('courierId', 1);
-        $courier = $this->courierRepo->findCourierById($this->courierId);
+        if (env('ACTIVATE_SHIPPING') == 1) {
+            $shipment = $this->createShippingProcess($customer, $products);
+            if (!is_null($shipment)) {
+                $shipment_object_id = $shipment->object_id;
+                $rates = $shipment->rates;
+            }
+        }
 
-        $shippingCost = $this->cartRepo->getShippingFee($courier);
+        // Get payment gateways
+        $paymentGateways = collect(explode(',', config('payees.name')))->transform(function ($name) {
+            return config($name);
+        })->all();
 
-        $addressId = request()->session()->get('addressId', 1);
-        $paymentId = request()->session()->get('paymentId', 1);
+        $billingAddress = $customer->addresses()->first();
 
         return view('front.checkout', [
             'customer' => $customer,
+            'billingAddress' => $billingAddress,
             'addresses' => $customer->addresses()->get(),
-            'products' => $this->cartProducts->getCartItems(),
+            'products' => $this->cartRepo->getCartItems(),
             'subtotal' => $this->cartRepo->getSubTotal(),
-            'shipping' => $shippingCost,
             'tax' => $this->cartRepo->getTax(),
-            'total' => $this->cartRepo->getTotal(2, $shippingCost),
-            'couriers' => $this->courierRepo->listCouriers(),
-            'selectedCourier' => $this->courierId,
-            'selectedAddress' => $addressId,
-            'selectedPayment' => $paymentId,
-            'payments' => $this->paymentRepo->listPaymentMethods()
+            'total' => $this->cartRepo->getTotal(2),
+            'payments' => $paymentGateways,
+            'cartItems' => $this->cartRepo->getCartItemsTransformed(),
+            'shipment_object_id' => $shipment_object_id,
+            'rates' => $rates
         ]);
     }
 
@@ -108,94 +138,74 @@ class CheckoutController extends Controller
      * Checkout the items
      *
      * @param CartCheckoutRequest $request
+     *
      * @return \Illuminate\Http\RedirectResponse
-     * @throws PaymentMethodNotFoundException
+     * @throws \App\Shop\Addresses\Exceptions\AddressNotFoundException
+     * @throws \App\Shop\Customers\Exceptions\CustomerPaymentChargingErrorException
      * @codeCoverageIgnore
      */
     public function store(CartCheckoutRequest $request)
     {
-        $method = $this->paymentRepo->findPaymentMethodById($request->input('payment'));
-        $courier = $this->courierRepo->findCourierById(request()->session()->get('courierId', 1));
+        $shippingFee = 0;
 
-        if ($method->slug == 'paypal') {
-            $this->paypal->setPayer();
-            $this->paypal->setItems($this->getCartItems($this->cartRepo->getCartItems()));
-            $this->paypal->setOtherFees(
-                $this->cartRepo->getSubTotal(),
-                $this->cartRepo->getTax(),
-                $this->cartRepo->getShippingFee($courier)
-            );
-            $this->paypal->setAmount($this->cartRepo->getTotal(2, $this->cartRepo->getShippingFee($courier)));
-            $this->paypal->setTransactions();
+        switch ($request->input('payment')) {
+            case 'paypal':
+                return $this->payPal->process($shippingFee, $request);
+                break;
+            case 'stripe':
 
-            try {
-                $response = $this->paypal->createPayment(
-                    route('checkout.execute', $request->except('_token')),
-                    route('checkout.cancel')
-                );
+                $details = [
+                    'description' => 'Stripe payment',
+                    'metadata' => $this->cartRepo->getCartItems()->all()
+                ];
 
-                if ($response) {
-                    $redirectUrl = $response->links[1]->href;
-                    return redirect()->to($redirectUrl);
-                }
-            } catch (PayPalConnectionException $e) {
-                throw new PaypalRequestError($e->getMessage());
-            }
-        } else {
-            throw new PaymentMethodNotFoundException('Payment method unknown');
+                $customer = $this->customerRepo->findCustomerById(auth()->id());
+                $customerRepo = new CustomerRepository($customer);
+                $customerRepo->charge($this->cartRepo->getTotal(2, $shippingFee), $details);
+                break;
+            default:
         }
-    }
-
-    public function getCartItems(Collection $collection)
-    {
-        return $collection->map(function (CartItem $item) {
-            $productRepo = new ProductRepository(new Product());
-            $product = $productRepo->findProductById($item->id);
-            $item->product = $product;
-            $item->cover = $product->cover;
-            $item->description = $product->description;
-            return $item;
-        });
     }
 
     /**
      * Execute the PayPal payment
      *
-     * @param Request $request
+     * @param PayPalCheckoutExecutionRequest $request
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function execute(Request $request)
+    public function executePayPalPayment(PayPalCheckoutExecutionRequest $request)
     {
         try {
-            $apiContext = $this->paypal->getApiContext();
-
-            $payment = Payment::get($request->input('paymentId'), $apiContext);
-            $execution = $this->paypal->setPayerId($request->input('PayerID'));
-            $trans = $payment->execute($execution, $apiContext);
-
-            foreach ($trans->getTransactions() as $t) {
-                $order = $this->orderRepo->create([
-                    'reference' => Uuid::uuid4()->toString(),
-                    'courier_id' => $request->input('courier'),
-                    'customer_id' => Auth::id(),
-                    'address_id' => $request->input('address'),
-                    'order_status_id' => 1,
-                    'payment_method_id' => $request->input('payment'),
-                    'discounts' => 0,
-                    'total_products' => $this->cartRepo->getSubTotal(),
-                    'total' => $this->cartRepo->getTotal(),
-                    'total_paid' => $t->getAmount()->getTotal(),
-                    'tax' => $this->cartRepo->getTax()
-                ]);
-
-                $this->buildOrderDetails($order);
-            }
+            $this->payPal->execute($request);
+            $this->cartRepo->clearCart();
 
             return redirect()->route('checkout.success');
         } catch (PayPalConnectionException $e) {
             throw new PaypalRequestError($e->getData());
         } catch (Exception $e) {
             throw new PaypalRequestError($e->getMessage());
+        }
+    }
+
+    /**
+     * @param StripeExecutionRequest $request
+     * @return \Stripe\Charge
+     */
+    public function charge(StripeExecutionRequest $request)
+    {
+        try {
+            $customer = $this->customerRepo->findCustomerById(auth()->id());
+            $stripeRepo = new StripeRepository($customer);
+
+            $stripeRepo->execute(
+                $request->all(),
+                Cart::total(),
+                Cart::tax()
+            );
+            return redirect()->route('checkout.success')->with('message', 'Stripe payment successful!');
+        } catch (StripeChargingErrorException $e) {
+            Log::info($e->getMessage());
+            return redirect()->route('checkout.index')->with('error', 'There is a problem processing your request.');
         }
     }
 
@@ -221,77 +231,23 @@ class CheckoutController extends Controller
     }
 
     /**
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function setCourier(Request $request)
-    {
-        $courier = $this->courierRepo->findCourierById($request->input('courierId'));
-        $shippingCost = $this->cartRepo->getShippingFee($courier);
-
-        request()->session()->put('courierId', $courier->id);
-
-        return response()->json([
-            'message' => 'Courier set successfully!',
-            'courier' => $courier,
-            'cartTotal' => $this->cartRepo->getTotal(2, $shippingCost)
-        ]);
-    }
-
-    /**
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function setAddress(Request $request)
-    {
-        $address = $this->addressRepo->findAddressById($request->input('addressId'));
-        request()->session()->put('addressId', $address->id);
-
-        return response()->json([
-            'message' => 'Address set successfully!',
-            'courier' => $address
-        ]);
-    }
-
-    /**
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function setPayment(Request $request)
-    {
-        $payment = $this->paymentRepo->findPaymentMethodById($request->input('paymentId'));
-        request()->session()->put('paymentId', $payment->id);
-
-        return response()->json([
-            'message' => 'Payment set successfully!',
-            'payment' => $payment
-        ]);
-    }
-
-    /**
-     * Build the order details
+     * @param Customer $customer
+     * @param Collection $products
      *
-     * @param Order $order
-     * @return \Illuminate\Http\RedirectResponse
+     * @return mixed
      */
-    private function buildOrderDetails(Order $order)
+    private function createShippingProcess(Customer $customer, Collection $products)
     {
-        $this->cartRepo->getCartItems()
-            ->each(function ($item) use ($order) {
-                $product = $this->productRepo->find($item->id);
-                $orderDetailRepo = new OrderProductRepository(new OrderProduct);
-                $orderDetailRepo->createOrderDetail($order, $product, $item->qty);
-            });
+        $customerRepo = new CustomerRepository($customer);
 
-        return $this->clearCart();
-    }
+        if ($customerRepo->findAddresses()->count() > 0 && $products->count() > 0) {
 
-    /**
-     * Clear the cart
-     */
-    private function clearCart()
-    {
-        $this->cartRepo->clearCart();
-        return redirect()->route('checkout.success');
+            $this->shippingRepo->setPickupAddress();
+            $deliveryAddress = $customerRepo->findAddresses()->first();
+            $this->shippingRepo->setDeliveryAddress($deliveryAddress);
+            $this->shippingRepo->readyParcel($this->cartRepo->getCartItems());
+
+            return $this->shippingRepo->readyShipment();
+        }
     }
 }

@@ -2,7 +2,10 @@
 
 namespace App\Shop\Orders\Repositories;
 
-use App\Shop\Base\BaseRepository;
+use App\Shop\Carts\Repositories\CartRepository;
+use App\Shop\Carts\ShoppingCart;
+use Gloudemans\Shoppingcart\Facades\Cart;
+use Jsdecena\Baserepo\BaseRepository;
 use App\Shop\Employees\Employee;
 use App\Shop\Employees\Repositories\EmployeeRepository;
 use App\Events\OrderCreateEvent;
@@ -13,7 +16,6 @@ use App\Shop\Orders\Exceptions\OrderNotFoundException;
 use App\Shop\Orders\Order;
 use App\Shop\Orders\Repositories\Interfaces\OrderRepositoryInterface;
 use App\Shop\Orders\Transformers\OrderTransformable;
-use App\Shop\PaymentMethods\PaymentMethod;
 use App\Shop\Products\Product;
 use App\Shop\Products\Repositories\ProductRepository;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -45,7 +47,11 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
     public function createOrder(array $params) : Order
     {
         try {
+
             $order = $this->create($params);
+
+            $orderRepo = new OrderRepository($order);
+            $orderRepo->buildOrderDetails(Cart::content());
 
             event(new OrderCreateEvent($order));
 
@@ -57,14 +63,14 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
 
     /**
      * @param array $params
-     * @return Order
+     *
+     * @return bool
      * @throws OrderInvalidArgumentException
      */
-    public function updateOrder(array $params) : Order
+    public function updateOrder(array $params) : bool
     {
         try {
-            $this->update($params, $this->model->id);
-            return $this->find($this->model->id);
+            return $this->update($params);
         } catch (QueryException $e) {
             throw new OrderInvalidArgumentException($e->getMessage());
         }
@@ -80,7 +86,7 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
         try {
             return $this->findOneOrFail($id);
         } catch (ModelNotFoundException $e) {
-            throw new OrderNotFoundException($e->getMessage());
+            throw new OrderNotFoundException($e);
         }
     }
 
@@ -102,7 +108,7 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
      * @param Order $order
      * @return mixed
      */
-    public function findProducts(Order $order)
+    public function findProducts(Order $order) : Collection
     {
         return $order->products;
     }
@@ -110,26 +116,20 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
     /**
      * @param Product $product
      * @param int $quantity
+     * @param array $data
      */
-    public function associateProduct(Product $product, int $quantity = 1)
+    public function associateProduct(Product $product, int $quantity = 1, array $data = [])
     {
-        $this->model->products()->attach($product, ['quantity' => $quantity]);
-
-        $this->updateProductQuantity($product, $quantity);
-    }
-
-    /**
-     * @param $product
-     * @param $qty
-     * @return Product
-     */
-    private function updateProductQuantity($product, $qty)
-    {
-        // update the product quantity
-        $productRepo = new ProductRepository($product);
-
-        $quantity = $product->quantity - $qty;
-        $productRepo->updateProduct(compact('quantity'), $product->id);
+        $this->model->products()->attach($product, [
+            'quantity' => $quantity,
+            'product_name' => $product->name,
+            'product_sku' => $product->sku,
+            'product_description' => $product->description,
+            'product_price' => $product->price,
+            'product_attribute_id' => isset($data['product_attribute_id']) ? $data['product_attribute_id']: null,
+        ]);
+        $product->quantity = ($product->quantity - $quantity);
+        $product->save();
     }
 
     /**
@@ -159,17 +159,11 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
      */
     public function searchOrder(string $text) : Collection
     {
-        return $this->model->search(
-            $text,
-            [
-                'products.name',
-                'products.description',
-                'customer.name',
-                'reference',
-                'paymentMethod.name',
-                'paymentMethod.description',
-            ]
-        )->get();
+        if (!empty($text)) {
+            return $this->model->searchForOrder($text)->get();
+        } else {
+            return $this->listOrders();
+        }
     }
 
     /**
@@ -181,10 +175,36 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
     }
 
     /**
-     * @return PaymentMethod
+     * @return Collection
      */
-    public function findPaymentMethod() : PaymentMethod
+    public function listOrderedProducts() : Collection
     {
-        return $this->model->paymentMethod;
+        return $this->model->products->map(function (Product $product) {
+            $product->name = $product->pivot->product_name;
+            $product->sku = $product->pivot->product_sku;
+            $product->description = $product->pivot->product_description;
+            $product->price = $product->pivot->product_price;
+            $product->quantity = $product->pivot->quantity;
+            $product->product_attribute_id = $product->pivot->product_attribute_id;
+            return $product;
+        });
+    }
+
+    /**
+     * @param Collection $items
+     */
+    public function buildOrderDetails(Collection $items)
+    {
+        $items->each(function ($item) {
+            $productRepo = new ProductRepository(new Product);
+            $product = $productRepo->find($item->id);
+            if ($item->options->has('product_attribute_id')) {
+                $this->associateProduct($product, $item->qty, [
+                    'product_attribute_id' => $item->options->product_attribute_id
+                ]);
+            } else {
+                $this->associateProduct($product, $item->qty);
+            }
+        });
     }
 }

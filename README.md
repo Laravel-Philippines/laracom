@@ -1,49 +1,20 @@
-[![Build Status](https://img.shields.io/travis/jsdecena/laracom/master.svg)](https://travis-ci.org/jsdecena/laracom)
-[![Build Status](https://img.shields.io/github/forks/jsdecena/laracom.svg)](https://github.com/jsdecena/laracom)
-[![Build Status](https://img.shields.io/github/stars/jsdecena/laracom.svg)](https://github.com/jsdecena/laracom)
-[![Test Coverage](https://img.shields.io/codecov/c/github/jsdecena/laracom/master.svg)](https://codecov.io/github/jsdecena/laracom?branch=master)
-[![Latest Stable Version](https://img.shields.io/packagist/v/jsdecena/laracom.svg)](https://packagist.org/packages/jsdecena/laracom)
-[![License](https://img.shields.io/packagist/l/jsdecena/laracom.svg)](https://packagist.org/packages/jsdecena/laracom)
+[![Build Status](https://travis-ci.org/Laracommerce/laracom.svg?branch=master)](https://travis-ci.org/Laracommerce/laracom)
+[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/Laracommerce/laracom/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/Laracommerce/laracom/?branch=master)
+[![Code Intelligence Status](https://scrutinizer-ci.com/g/Laracommerce/laracom/badges/code-intelligence.svg?b=master)](https://scrutinizer-ci.com/code-intelligence)
+[![Test Coverage](https://img.shields.io/codecov/c/github/Laracommerce/laracom/master.svg)](https://codecov.io/github/Laracommerce/laracom?branch=master)
+[![Fork Status](https://img.shields.io/github/forks/Laracommerce/laracom.svg)](https://github.com/Laracommerce/laracom)
+[![Star Status](https://img.shields.io/github/stars/Laracommerce/laracom.svg)](https://github.com/Laracommerce/laracom)
+[![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/larac0m/Lobby)
 
 # Laravel FREE E-Commerce Software
 
-#### Framework Used : Laravel 5.4
+- See full [documentation](https://shop.laracom.net/docs)
 
-[Installation](https://github.com/jsdecena/laracom/wiki)
+## Setup
+* `php artisan migrate --seed`
+* `npm run dev`
+* `php artisan storage:link`
 
-#### Features
+# Author
 
-- Products
-    - Multiple product images
-    - Configure SKU, name, description, price and quantity
-    - Enable / Disable products
-    - Full searchable of products in admin and front store
-
-- Categories
-    - Cover category image
-    - Parent-child categories for layered navigation
-    - Configure name, description and status
-
-- Customer
-    - See detailed customer information, addresses for your shipping
-    - Enable / Disable customers
-
-- Orders
-    - See overview of your orders
-    - Detailed view of the order comes with: list of items purchased, delivery address, chosen courier 
-    and payment status.
-    - Downloadable invoice
-    
-- Payment
-    - Paypal-ready shop!
-    - Accept online payments in an instant
-    
-- Couriers
-    - Add couriers and configuration
-    
-- Employees
-    - Add / edit employees that will manage your store
-    
-- Mobile
-    - Mobile responsive design for the admin and front store
-    - Access anywhere your admin and front store
+[Jeff Simons Decena](https://jsdecena.me)

@@ -7,11 +7,11 @@ use Gloudemans\Shoppingcart\CartItem;
 
 class ShoppingCart extends Cart
 {
-    static $defaultCurrency;
+    public static $defaultCurrency;
 
-    private $session;
+    protected $session;
 
-    private $event;
+    protected $event;
 
     public function __construct()
     {

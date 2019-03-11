@@ -5,7 +5,7 @@ namespace Tests\Feature\Admin\Countries;
 use App\Shop\Countries\Country;
 use Tests\TestCase;
 
-class CountryFeatureTest extends TestCase 
+class CountryFeatureTest extends TestCase
 {
     /** @test */
     public function it_can_update_the_country()
@@ -14,7 +14,7 @@ class CountryFeatureTest extends TestCase
         $country = factory(Country::class)->create();
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->put(route('admin.countries.update', $country->id), $data)
             ->assertStatus(302)
             ->assertRedirect(route('admin.countries.edit', $country->id))
@@ -27,10 +27,10 @@ class CountryFeatureTest extends TestCase
         $country = factory(Country::class)->create();
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->get(route('admin.countries.show', $country->id))
             ->assertStatus(200)
-            ->assertSee($country->name);
+            ->assertSee(htmlentities($country->name, ENT_QUOTES));
     }
     
     /** @test */
@@ -39,10 +39,10 @@ class CountryFeatureTest extends TestCase
         $country = factory(Country::class)->create();
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->get(route('admin.countries.index'))
             ->assertStatus(200)
-            ->assertSee($country->name);
+            ->assertSee(htmlentities($country->name, ENT_QUOTES));
     }
 
     /** @test */
@@ -51,9 +51,9 @@ class CountryFeatureTest extends TestCase
         $country = factory(Country::class)->create();
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->get(route('admin.countries.edit', $country->id))
             ->assertStatus(200)
-            ->assertSee($country->name);
+            ->assertSee(htmlentities($country->name, ENT_QUOTES));
     }
 }

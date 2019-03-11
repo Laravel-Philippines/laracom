@@ -11,19 +11,23 @@
                 <div class="box-body">
                     <h2> <i class="fa fa-flask"></i> Payment Methods</h2>
                     <table class="table">
-                        <tbody>
-                        <tr>
-                            <td class="col-md-3">Name</td>
-                            <td class="col-md-3">Color</td>
-                            <td class="col-md-3">Status</td>
-                            <td class="col-md-3">Actions</td>
-                        </tr>
-                        </tbody>
+                        <thead>
+                            <tr>
+                                <td>Name</td>
+                                <td>Account ID</td>
+                                <td>Client ID</td>
+                                <td>Client Secret</td>
+                                <td>Status</td>
+                                <td>Actions</td>
+                            </tr>
+                        </thead>
                         <tbody>
                         @foreach ($paymentMethods as $paymentMethod)
                             <tr>
                                 <td>{{ $paymentMethod->name }}</td>
-                                <td>{{ $paymentMethod->description }}</td>
+                                <td>{{ $paymentMethod->account_id }}</td>
+                                <td>{{ $paymentMethod->client_id }}</td>
+                                <td>{{ $paymentMethod->client_secret }}</td>
                                 <td>@include('layouts.status', ['status' => $paymentMethod->status])</td>
                                 <td>
                                     <form action="{{ route('admin.payment-methods.destroy', $paymentMethod->id) }}" method="post" class="form-horizontal">

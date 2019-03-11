@@ -3,10 +3,11 @@
 namespace Tests\Unit\Address;
 
 use App\Shop\Addresses\Address;
-use App\Shop\Addresses\Exceptions\AddressInvalidArgumentException;
+use App\Shop\Addresses\Exceptions\CreateAddressErrorException;
 use App\Shop\Addresses\Exceptions\AddressNotFoundException;
 use App\Shop\Addresses\Repositories\AddressRepository;
 use App\Shop\Addresses\Transformations\AddressTransformable;
+use App\Shop\Cities\Repositories\CityRepository;
 use App\Shop\Customers\Customer;
 use App\Shop\Customers\Repositories\CustomerRepository;
 use App\Shop\Orders\Order;
@@ -44,13 +45,15 @@ class AddressUnitTest extends TestCase
         $address = factory(Address::class)->create([
             'country_id' => $country->id,
             'province_id' => $province->id,
-            'city_id' => $city->id
+            'city' => $city->name
         ]);
 
         $repo = new AddressRepository($address);
         $foundCountry = $repo->findCountry();
         $foundProvince = $repo->findProvince();
-        $foundCity = $repo->findCity();
+
+        $cityRepo = new CityRepository($city);
+        $foundCity = $cityRepo->findCityByName($address->city);
 
         $this->assertInstanceOf(Country::class, $foundCountry);
         $this->assertInstanceOf(Province::class, $foundProvince);
@@ -68,7 +71,7 @@ class AddressUnitTest extends TestCase
         $country = factory(Country::class)->create();
         $customer = factory(Customer::class)->create();
         $address = factory(Address::class)->create([
-            'city_id' => $city->id,
+            'city' => $city->name,
             'province_id' => $province->id,
             'country_id' => $country->id,
             'customer_id' => $customer->id,
@@ -81,7 +84,7 @@ class AddressUnitTest extends TestCase
         $this->assertEquals($country->name, $transformed->country);
         $this->assertEquals($customer->name, $transformed->customer);
     }
-    
+
     /** @test */
     public function it_can_search_the_address()
     {
@@ -91,12 +94,9 @@ class AddressUnitTest extends TestCase
         ]);
 
         $repo = new AddressRepository(new Address());
-        $results = $repo->searchAddress($address->alias);
+        $results = $repo->searchAddress(str_limit($address->address_1, 5, ''));
 
-        $results->each(function ($item) use ($address1) {
-            $this->assertEquals($address1, $item->address_1);
-        });
-
+        $this->assertTrue((bool) $results->count());
     }
 
     /** @test */
@@ -123,7 +123,7 @@ class AddressUnitTest extends TestCase
 
         $this->assertEquals($customer->name, $address->customer->name);
     }
-    
+
     /** @test */
     public function it_errors_when_the_address_is_not_found()
     {
@@ -132,7 +132,7 @@ class AddressUnitTest extends TestCase
         $address = new AddressRepository(new Address);
         $address->findAddressById(999);
     }
-    
+
     /** @test */
     public function it_can_list_all_the_addresses()
     {
@@ -149,12 +149,12 @@ class AddressUnitTest extends TestCase
     /** @test */
     public function it_errors_when_creating_an_address()
     {
-        $this->expectException(AddressInvalidArgumentException::class);
+        $this->expectException(CreateAddressErrorException::class);
 
         $address = new AddressRepository(new Address);
-        $address->createAddress(['alias' => null]);
+        $address->createAddress([]);
     }
-    
+
     /** @test */
     public function it_can_show_the_address()
     {
@@ -162,7 +162,7 @@ class AddressUnitTest extends TestCase
 
         $this->assertDatabaseHas('addresses', ['id' => $address->id]);
     }
-    
+
     /** @test */
     public function it_can_list_all_the_addresses_of_the_customer()
     {
@@ -174,7 +174,7 @@ class AddressUnitTest extends TestCase
 
         $this->assertCount(1, $lists);
     }
-    
+
     /** @test */
     public function it_can_soft_delete_the_address()
     {
@@ -191,7 +191,7 @@ class AddressUnitTest extends TestCase
     {
         $address = factory(Address::class)->create();
 
-        $update = [
+        $data = [
             'alias' => $this->faker->unique()->word,
             'address_1' => $this->faker->unique()->word,
             'address_2' => null,
@@ -200,16 +200,18 @@ class AddressUnitTest extends TestCase
         ];
 
         $addressRepo = new AddressRepository($address);
-        $updated = $addressRepo->updateAddress($update);
+        $updated = $addressRepo->updateAddress($data);
+
+        $address = $addressRepo->findAddressById($address->id);
 
         $this->assertTrue($updated);
-        $this->assertEquals($update['alias'], $address->alias);
-        $this->assertEquals($update['address_1'], $address->address_1);
-        $this->assertEquals($update['address_2'], $address->address_2);
-        $this->assertEquals($update['zip'], $address->zip);
-        $this->assertEquals($update['status'], $address->status);
+        $this->assertEquals($data['alias'], $address->alias);
+        $this->assertEquals($data['address_1'], $address->address_1);
+        $this->assertEquals($data['address_2'], $address->address_2);
+        $this->assertEquals($data['zip'], $address->zip);
+        $this->assertEquals($data['status'], $address->status);
     }
-    
+
     /** @test */
     public function it_can_create_the_address()
     {
@@ -218,26 +220,26 @@ class AddressUnitTest extends TestCase
         $city = factory(City::class)->create();
         $customer = factory(Customer::class)->create();
 
-        $params = [
-            'alias' => $this->faker->word,
+        $data = [
+            'alias' => 'home',
             'address_1' => $this->faker->streetName,
             'address_2' => $this->faker->streetAddress,
             'zip' => $this->faker->postcode,
-            'city_id' => $city->id,
+            'city' => $city->name,
             'province_id' => $province->id,
             'country_id' => $country->id,
-            'customer' => $customer->id,
+            'customer_id' => $customer->id,
             'status' => 1
         ];
 
         $addressRepo = new AddressRepository(new Address);
-        $address = $addressRepo->createAddress($params);
+        $address = $addressRepo->createAddress($data);
 
         $this->assertInstanceOf(Address::class, $address);
-        $this->assertEquals($params['alias'], $address->alias);
-        $this->assertEquals($params['address_1'], $address->address_1);
-        $this->assertEquals($params['address_2'], $address->address_2);
-        $this->assertEquals($params['zip'], $address->zip);
-        $this->assertEquals($params['status'], $address->status);
+        $this->assertEquals($data['alias'], $address->alias);
+        $this->assertEquals($data['address_1'], $address->address_1);
+        $this->assertEquals($data['address_2'], $address->address_2);
+        $this->assertEquals($data['zip'], $address->zip);
+        $this->assertEquals($data['status'], $address->status);
     }
 }

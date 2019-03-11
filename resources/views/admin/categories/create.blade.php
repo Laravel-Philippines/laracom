@@ -10,9 +10,10 @@
                     {{ csrf_field() }}
                     <div class="form-group">
                         <label for="parent">Parent Category</label>
-                        <select name="parent" id="parent" class="form-control">
+                        <select name="parent" id="parent" class="form-control select2">
+                            <option value="">-- Select --</option>
                             @foreach($categories as $category)
-                                <option value="{{$category->id}}">{{$category->name}}</option>
+                                <option value="{{ $category->id }}">{{ $category->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -22,7 +23,7 @@
                     </div>
                     <div class="form-group">
                         <label for="description">Description </label>
-                        <textarea class="form-control" name="description" id="description" rows="5" placeholder="Description">{{ old('description') }}</textarea>
+                        <textarea class="form-control ckeditor" name="description" id="description" rows="5" placeholder="Description">{{ old('description') }}</textarea>
                     </div>
                     <div class="form-group">
                         <label for="cover">Cover </label>

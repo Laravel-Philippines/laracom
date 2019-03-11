@@ -3,10 +3,11 @@
 namespace App\Shop\Customers\Repositories;
 
 use App\Shop\Addresses\Address;
-use App\Shop\Base\BaseRepository;
+use Jsdecena\Baserepo\BaseRepository;
 use App\Shop\Customers\Customer;
 use App\Shop\Customers\Exceptions\CreateCustomerInvalidArgumentException;
 use App\Shop\Customers\Exceptions\CustomerNotFoundException;
+use App\Shop\Customers\Exceptions\CustomerPaymentChargingErrorException;
 use App\Shop\Customers\Exceptions\UpdateCustomerInvalidArgumentException;
 use App\Shop\Customers\Repositories\Interfaces\CustomerRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
@@ -68,14 +69,16 @@ class CustomerRepository extends BaseRepository implements CustomerRepositoryInt
      * Update the customer
      *
      * @param array $params
+     *
      * @return bool
+     * @throws UpdateCustomerInvalidArgumentException
      */
     public function updateCustomer(array $params) : bool
     {
         try {
             return $this->model->update($params);
         } catch (QueryException $e) {
-            throw new UpdateCustomerInvalidArgumentException('Cannot update customer', 500, $e);
+            throw new UpdateCustomerInvalidArgumentException($e);
         }
     }
 
@@ -83,14 +86,16 @@ class CustomerRepository extends BaseRepository implements CustomerRepositoryInt
      * Find the customer or fail
      *
      * @param int $id
+     *
      * @return Customer
+     * @throws CustomerNotFoundException
      */
     public function findCustomerById(int $id) : Customer
     {
         try {
             return $this->findOneOrFail($id);
         } catch (ModelNotFoundException $e) {
-            throw new CustomerNotFoundException('Cannot find customer', $e);
+            throw new CustomerNotFoundException($e);
         }
     }
 
@@ -98,10 +103,11 @@ class CustomerRepository extends BaseRepository implements CustomerRepositoryInt
      * Delete a customer
      *
      * @return bool
+     * @throws \Exception
      */
     public function deleteCustomer() : bool
     {
-        return $this->model->delete();
+        return $this->delete();
     }
 
     /**
@@ -110,7 +116,8 @@ class CustomerRepository extends BaseRepository implements CustomerRepositoryInt
      */
     public function attachAddress(Address $address) : Address
     {
-        return $this->model->addresses()->save($address);
+        $this->model->addresses()->save($address);
+        return $address;
     }
 
     /**
@@ -124,19 +131,40 @@ class CustomerRepository extends BaseRepository implements CustomerRepositoryInt
     }
 
     /**
+     * @param array $columns
+     * @param string $orderBy
+     *
      * @return Collection
      */
-    public function findOrders() : Collection
+    public function findOrders($columns = ['*'], string $orderBy = 'id') : Collection
     {
-        return $this->model->orders()->get();
+        return $this->model->orders()->get($columns)->sortByDesc($orderBy);
     }
 
     /**
      * @param string $text
      * @return mixed
      */
-    public function searchCustomer(string $text) : Collection
+    public function searchCustomer(string $text = null) : Collection
     {
-        return $this->model->search($text, ['name' => 10, 'email' => 5])->get();
+        if (is_null($text)) {
+            return $this->all();
+        }
+        return $this->model->searchCustomer($text)->get();
+    }
+
+    /**
+     * @param int $amount
+     * @param array $options
+     * @return \Stripe\Charge
+     * @throws CustomerPaymentChargingErrorException
+     */
+    public function charge(int $amount, array $options)
+    {
+        try {
+            return $this->model->charge($amount * 100, $options);
+        } catch (\Exception $e) {
+            throw new CustomerPaymentChargingErrorException($e);
+        }
     }
 }

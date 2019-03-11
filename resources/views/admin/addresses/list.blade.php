@@ -11,22 +11,22 @@
                     <h2>Addresses</h2>
                     @include('layouts.search', ['route' => route('admin.addresses.index')])
                     <table class="table">
-                        <tbody>
-                        <tr>
-                            <td class="col-md-1">Alias</td>
-                            <td class="col-md-2">Address 1</td>
-                            <td class="col-md-1">Country</td>
-                            <td class="col-md-2">Province</td>
-                            <td class="col-md-1">City</td>
-                            <td class="col-md-1">Zip Code</td>
-                            <td class="col-md-1">Status</td>
-                            <td class="col-md-3">Actions</td>
-                        </tr>
-                        </tbody>
+                        <thead>
+                            <tr>
+                                <td class="col-md-1">Alias</td>
+                                <td class="col-md-2">Address 1</td>
+                                <td class="col-md-1">Country</td>
+                                <td class="col-md-2">Province</td>
+                                <td class="col-md-1">City</td>
+                                <td class="col-md-1">Zip Code</td>
+                                <td class="col-md-1">Status</td>
+                                <td class="col-md-3">Actions</td>
+                            </tr>
+                        </thead>
                         <tbody>
                         @foreach ($addresses as $address)
                             <tr>
-                                <td><a href="{{ route('admin.customers.show', $address->customer_id) }}">{{ $address->alias }}</a></td>
+                                <td><a href="{{ route('admin.customers.show', [$address->customer_id]) }}">{{ $address->alias }}</a></td>
                                 <td>{{ $address->address_1 }}</td>
                                 <td>{{ $address->country }}</td>
                                 <td>{{ $address->province }}</td>

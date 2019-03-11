@@ -30,14 +30,18 @@ class ProductController extends Controller
      */
     public function search()
     {
-        $list = $this->productRepo->searchProduct(request()->input('q'));
+        if (request()->has('q') && request()->input('q') != '') {
+            $list = $this->productRepo->searchProduct(request()->input('q'));
+        } else {
+            $list = $this->productRepo->listProducts();
+        }
 
-        $products = $list->map(function (Product $item) {
+        $products = $list->where('status', 1)->map(function (Product $item) {
             return $this->transformProduct($item);
-        })->all();
+        });
 
         return view('front.products.product-search', [
-            'products' => $this->productRepo->paginateArrayResults($products, 10)
+            'products' => $this->productRepo->paginateArrayResults($products->all(), 10)
         ]);
     }
 
@@ -47,13 +51,19 @@ class ProductController extends Controller
      * @param string $slug
      * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
      */
-    public function getProduct(string $slug)
+    public function show(string $slug)
     {
         $product = $this->productRepo->findProductBySlug(['slug' => $slug]);
+        $images = $product->images()->get();
+        $category = $product->categories()->first();
+        $productAttributes = $product->attributes;
 
-        return view('front.products.product', [
-            'product' => $product,
-            'images' => $product->images()->get()
-        ]);
+        return view('front.products.product', compact(
+            'product',
+            'images',
+            'productAttributes',
+            'category',
+            'combos'
+        ));
     }
 }

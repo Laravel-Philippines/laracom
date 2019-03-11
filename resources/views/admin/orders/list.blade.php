@@ -12,7 +12,7 @@
                     <h2>Orders</h2>
                     @include('layouts.search', ['route' => route('admin.orders.index')])
                     <table class="table">
-                        <tbody>
+                        <thead>
                             <tr>
                                 <td class="col-md-3">Date</td>
                                 <td class="col-md-3">Customer</td>
@@ -20,7 +20,7 @@
                                 <td class="col-md-2">Total</td>
                                 <td class="col-md-2">Status</td>
                             </tr>
-                        </tbody>
+                        </thead>
                         <tbody>
                         @foreach ($orders as $order)
                             <tr>
@@ -28,7 +28,7 @@
                                 <td>{{$order->customer->name}}</td>
                                 <td>{{ $order->courier->name }}</td>
                                 <td>
-                                    <span class="label @if($order->total != $order->total_paid) label-danger @else label-success @endif">Php {{ $order->total }}</span>
+                                    <span class="label @if($order->total != $order->total_paid) label-danger @else label-success @endif">{{ config('cart.currency') }} {{ $order->total }}</span>
                                 </td>
                                 <td><p class="text-center" style="color: #ffffff; background-color: {{ $order->status->color }}">{{ $order->status->name }}</p></td>
                             </tr>

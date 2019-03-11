@@ -4,7 +4,7 @@
             <div class="col-md-12 text-center">
 
                 <ul class="footer-menu">
-                    <li> <a href="{{ route('accounts') }}">Your account</a>  </li>
+                    <li> <a href="{{ route('accounts', ['tab' => 'profile']) }}">Your account</a>  </li>
                     <li> <a href="">Contact us</a>  </li>
                     <li> <a href="">Terms of service</a>  </li>
                 </ul>
@@ -22,11 +22,3 @@
         </div>
     </div>
 </footer>
-
-<!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-<script src="{{ asset('front/js/jquery.min.js') }}"></script>
-<!-- Include all compiled plugins (below), or include individual files as needed -->
-<script src="{{ asset('front/js/bootstrap.min.js') }}"></script>
-<script src="{{ asset('front/js/custom.js') }}"></script>
-<script src="{{ asset('front/js/owl.carousel.min.js') }}"></script>
-<script src="{{ asset('front/js/front.js') }}"></script>

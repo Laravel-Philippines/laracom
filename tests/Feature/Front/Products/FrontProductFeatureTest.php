@@ -5,7 +5,7 @@ namespace Tests\Feature\Front\Products;
 use App\Shop\Products\Product;
 use Tests\TestCase;
 
-class FrontProductFeatureTest extends TestCase 
+class FrontProductFeatureTest extends TestCase
 {
     /** @test */
     public function it_can_show_the_product()
@@ -17,6 +17,19 @@ class FrontProductFeatureTest extends TestCase
             ->assertStatus(200)
             ->assertSee($product->name)
             ->assertSee($product->description)
+            ->assertSee("$product->quantity")
+            ->assertSee("$product->price");
+    }
+
+    /** @test */
+    public function it_should_not_throw_error_even_the_query_is_empty()
+    {
+        $product = factory(Product::class)->create();
+
+        $this
+            ->get(route('search.product', ['q' => '']))
+            ->assertStatus(200)
+            ->assertSee($product->name)
             ->assertSee("$product->quantity")
             ->assertSee("$product->price");
     }

@@ -1,38 +1,36 @@
-@if(isset($products))
+@if(!$products->isEmpty())
     <table class="table">
-        <tbody>
+        <thead>
         <tr>
-            <td class="col-md-2">Name</td>
-            <td class="col-md-2">Description</td>
-            <td class="col-md-2">Cover</td>
-            <td class="col-md-1">Quantity</td>
-            <td class="col-md-1">Price</td>
-            <td class="col-md-1">Status</td>
-            <td class="col-md-3">Actions</td>
+            <td>ID</td>
+            <td>Name</td>
+            <td>Quantity</td>
+            <td>Price</td>
+            <td>Status</td>
+            <td>Actions</td>
         </tr>
-        </tbody>
+        </thead>
         <tbody>
         @foreach ($products as $product)
             <tr>
-                <td><a href="{{ route('admin.products.show', $product->id) }}">{{ $product->name }}</a></td>
-                <td>{{ $product->description }}</td>
-                <td class="text-center">
-                    @if(isset($product->cover))
-                        <img src="{{ asset("storage/$product->cover") }}" alt="" class="img-responsive">
+                <td>{{ $product->id }}</td>
+                <td>
+                    @if($admin->hasPermission('view-product'))
+                        <a href="{{ route('admin.products.show', $product->id) }}">{{ $product->name }}</a>
                     @else
-                        -
+                        {{ $product->name }}
                     @endif
                 </td>
                 <td>{{ $product->quantity }}</td>
-                <td>Php {{ $product->price }}</td>
+                <td>{{ config('cart.currency') }} {{ $product->price }}</td>
                 <td>@include('layouts.status', ['status' => $product->status])</td>
                 <td>
                     <form action="{{ route('admin.products.destroy', $product->id) }}" method="post" class="form-horizontal">
                         {{ csrf_field() }}
                         <input type="hidden" name="_method" value="delete">
                         <div class="btn-group">
-                            <a href="{{ route('admin.products.edit', $product->id) }}" class="btn btn-primary btn-sm"><i class="fa fa-edit"></i> Edit</a>
-                            <button onclick="return confirm('Are you sure?')" type="submit" class="btn btn-danger btn-sm"><i class="fa fa-times"></i> Delete</button>
+                            @if($admin->hasPermission('update-product'))<a href="{{ route('admin.products.edit', $product->id) }}" class="btn btn-primary btn-sm"><i class="fa fa-edit"></i> Edit</a>@endif
+                            @if($admin->hasPermission('delete-product'))<button onclick="return confirm('Are you sure?')" type="submit" class="btn btn-danger btn-sm"><i class="fa fa-times"></i> Delete</button>@endif
                         </div>
                     </form>
                 </td>

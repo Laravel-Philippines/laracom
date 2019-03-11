@@ -25,7 +25,7 @@ class CustomersFeatureTest extends TestCase
         $attachedAddress = $customerRepo->attachAddress($address);
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->get(route('admin.customers.addresses.edit', [$customer->id, $attachedAddress->id]))
             ->assertStatus(200)
             ->assertSee($address->alias);
@@ -42,7 +42,7 @@ class CustomersFeatureTest extends TestCase
         $customerRepo->attachAddress($address);
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->get(route('admin.customers.addresses.show', [$customer->id, $address->id]))
             ->assertStatus(200)
             ->assertSee($address->alias);
@@ -54,7 +54,7 @@ class CustomersFeatureTest extends TestCase
         $customer = factory(Customer::class)->create();
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->delete(route('admin.customers.destroy', $customer->id))
             ->assertStatus(302)
             ->assertRedirect(route('admin.customers.index'))
@@ -67,15 +67,15 @@ class CustomersFeatureTest extends TestCase
         $customer = factory(Customer::class)->create();
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->get(route('admin.customers.create'))
             ->assertStatus(200);
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->get(route('admin.customers.edit', $customer->id))
             ->assertStatus(200)
-            ->assertSee($customer->name);
+            ->assertSee(htmlentities($customer->name, ENT_QUOTES));
     }
 
     /** @test */
@@ -86,20 +86,9 @@ class CustomersFeatureTest extends TestCase
         $param = ['q' => str_slug($customer->name, 5)];
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->get(route('admin.customers.index', $param))
             ->assertStatus(200);
-    }
-    
-    /** @test */
-    public function it_errors_when_the_customer_is_logging_in_without_the_email_or_password()
-    {
-        $this
-            ->post('login', [])
-            ->assertSessionHasErrors([
-                'email' => 'The email field is required.',
-                'password' => 'The password field is required.'
-            ]);
     }
     
     /** @test */
@@ -113,7 +102,7 @@ class CustomersFeatureTest extends TestCase
             'password' => 'unknown'
         ];
 
-        $this->actingAs($this->employee, 'admin')
+        $this->actingAs($this->employee, 'employee')
             ->put(route('admin.customers.update', $customer->id), $data)
             ->assertStatus(302)
             ->assertRedirect(route('admin.customers.edit', $customer->id));
@@ -124,7 +113,7 @@ class CustomersFeatureTest extends TestCase
     {
         factory(Customer::class, 20)->create();
 
-        $this->actingAs($this->employee, 'admin')
+        $this->actingAs($this->employee, 'employee')
             ->get(route('admin.customers.index'))
             ->assertViewHas(['customers']);
     }
@@ -134,10 +123,10 @@ class CustomersFeatureTest extends TestCase
     {
         $customer = factory(Customer::class)->create();
 
-        $this->actingAs($this->employee, 'admin')
+        $this->actingAs($this->employee, 'employee')
             ->get(route('admin.customers.show', $customer->id))
             ->assertViewHas(['customer'])
-            ->assertSeeText($customer->name);
+            ->assertSeeText(htmlentities($customer->name, ENT_QUOTES));
     }
     
     /** @test */
@@ -150,7 +139,7 @@ class CustomersFeatureTest extends TestCase
             'email' => $this->faker->email
         ];
 
-        $this->actingAs($this->employee, 'admin')
+        $this->actingAs($this->employee, 'employee')
             ->put(route('admin.customers.update', $customer->id), $data)
             ->assertStatus(302)
             ->assertRedirect(route('admin.customers.edit', $customer->id));
@@ -159,7 +148,7 @@ class CustomersFeatureTest extends TestCase
     }
 
     /** @test */
-    public function it_can_create_an_employee()
+    public function it_can_create_the_customer()
     {
         $data = [
             'name' => $this->faker->name,
@@ -167,7 +156,7 @@ class CustomersFeatureTest extends TestCase
             'password' => 'secret!!'
         ];
 
-        $this->actingAs($this->employee, 'admin')
+        $this->actingAs($this->employee, 'employee')
             ->post(route('admin.customers.store'), $data)
             ->assertStatus(302)
             ->assertRedirect(route('admin.customers.index'));

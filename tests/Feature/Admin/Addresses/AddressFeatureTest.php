@@ -18,7 +18,7 @@ class AddressFeatureTest extends TestCase
         $address = factory(Address::class)->create();
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->get(route('admin.addresses.edit', $address->id))
             ->assertStatus(200)
             ->assertSee($address->alias)
@@ -31,7 +31,7 @@ class AddressFeatureTest extends TestCase
         factory(Country::class)->create();
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->get(route('admin.addresses.create'))
             ->assertStatus(200)
             ->assertSee($this->customer->name);
@@ -44,7 +44,7 @@ class AddressFeatureTest extends TestCase
         $address = factory(Address::class)->create();
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->delete(route('admin.addresses.destroy', $address->id))
             ->assertStatus(302)
             ->assertRedirect(route('admin.addresses.index'))
@@ -58,10 +58,11 @@ class AddressFeatureTest extends TestCase
         $address = factory(Address::class)->create();
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->get(route('admin.addresses.show', $address->id))
             ->assertStatus(200)
-            ->assertSee($address->alias);;
+            ->assertSee($address->alias);
+        ;
     }
     
     /** @test */
@@ -71,7 +72,7 @@ class AddressFeatureTest extends TestCase
         $address = factory(Address::class)->create();
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->get(route('admin.addresses.index', ['q' => $address->alias]))
             ->assertStatus(200)
             ->assertSee($address->alias);
@@ -84,11 +85,11 @@ class AddressFeatureTest extends TestCase
         $address = factory(Address::class)->create();
 
         $this
-            ->actingAs($this->employee, 'admin')
+            ->actingAs($this->employee, 'employee')
             ->get(route('admin.addresses.index'))
             ->assertStatus(200)
-            ->assertSee($address->alias)
-            ->assertSee($address->address_1);
+            ->assertSee(htmlentities($address->alias, ENT_QUOTES))
+            ->assertSee(htmlentities($address->address_1, ENT_QUOTES));
     }
 
     /** @test */
@@ -102,7 +103,7 @@ class AddressFeatureTest extends TestCase
             'status' => 1
         ];
 
-        $this->actingAs($this->employee, 'admin')
+        $this->actingAs($this->employee, 'employee')
             ->put(route('admin.addresses.update', $address->id), $data)
             ->assertStatus(302)
             ->assertRedirect(route('admin.addresses.edit', $address->id))
@@ -112,7 +113,7 @@ class AddressFeatureTest extends TestCase
     /** @test */
     public function it_errors_updating_the_address()
     {
-        $this->actingAs($this->employee, 'admin')
+        $this->actingAs($this->employee, 'employee')
             ->post(route('admin.addresses.store', ['alias' => null]))
             ->assertSessionHasErrors(['alias' => 'The alias field is required.']);
     }
@@ -137,7 +138,7 @@ class AddressFeatureTest extends TestCase
             'status' => 1
         ];
 
-        $this->actingAs($this->employee, 'admin')
+        $this->actingAs($this->employee, 'employee')
             ->post(route('admin.addresses.store'), $data)
             ->assertStatus(302)
             ->assertRedirect(route('admin.addresses.index'))

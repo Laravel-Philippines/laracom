@@ -6,14 +6,36 @@ use App\Shop\Addresses\Address;
 use App\Shop\Couriers\Courier;
 use App\Shop\Customers\Customer;
 use App\Shop\OrderStatuses\OrderStatus;
-use App\Shop\PaymentMethods\PaymentMethod;
 use App\Shop\Products\Product;
 use Illuminate\Database\Eloquent\Model;
-use Sofa\Eloquence\Eloquence;
+use Nicolaslopezj\Searchable\SearchableTrait;
 
 class Order extends Model
 {
-    use Eloquence;
+    use SearchableTrait;
+
+    /**
+     * Searchable rules.
+     *
+     * Columns and their priority in search results.
+     * Columns with higher values are more important.
+     * Columns with equal values have equal importance.
+     *
+     * @var array
+     */
+    protected $searchable = [
+        'columns' => [
+            'customers.name' => 10,
+            'orders.reference' => 8,
+            'products.name' => 5
+        ],
+        'joins' => [
+            'customers' => ['customers.id', 'orders.customer_id'],
+            'order_product' => ['orders.id', 'order_product.order_id'],
+            'products' => ['products.id', 'order_product.product_id'],
+        ],
+        'groupBy' => ['orders.id']
+    ];
 
     /**
      * The attributes that are mass assignable.
@@ -22,17 +44,21 @@ class Order extends Model
      */
     protected $fillable = [
         'reference',
-        'courier_id',
+        'courier_id', // @deprecated
+        'courier',
         'customer_id',
         'address_id',
         'order_status_id',
-        'payment_method_id',
+        'payment',
         'discounts',
         'total_products',
         'total',
         'tax',
         'total_paid',
         'invoice',
+        'label_url',
+        'tracking_number',
+        'total_shipping'
     ];
 
     /**
@@ -42,34 +68,61 @@ class Order extends Model
      */
     protected $hidden = [];
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
     public function products()
     {
         return $this->belongsToMany(Product::class)
-                    ->withPivot(['quantity']);
+                    ->withPivot([
+                        'quantity',
+                        'product_name',
+                        'product_sku',
+                        'product_description',
+                        'product_price',
+                        'product_attribute_id'
+                    ]);
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function customer()
     {
         return $this->belongsTo(Customer::class);
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function courier()
     {
         return $this->belongsTo(Courier::class);
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function address()
     {
         return $this->belongsTo(Address::class);
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function orderStatus()
     {
         return $this->belongsTo(OrderStatus::class);
     }
 
-    public function paymentMethod()
+    /**
+     * @param string $term
+     *
+     * @return mixed
+     */
+    public function searchForOrder(string $term)
     {
-        return $this->belongsTo(PaymentMethod::class);
+        return self::search($term);
     }
 }

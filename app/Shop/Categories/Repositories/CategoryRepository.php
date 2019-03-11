@@ -2,7 +2,7 @@
 
 namespace App\Shop\Categories\Repositories;
 
-use App\Shop\Base\BaseRepository;
+use Jsdecena\Baserepo\BaseRepository;
 use App\Shop\Categories\Category;
 use App\Shop\Categories\Exceptions\CategoryInvalidArgumentException;
 use App\Shop\Categories\Exceptions\CategoryNotFoundException;
@@ -13,6 +13,7 @@ use App\Shop\Tools\UploadableTrait;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 
 class CategoryRepository extends BaseRepository implements CategoryRepositoryInterface
 {
@@ -36,27 +37,46 @@ class CategoryRepository extends BaseRepository implements CategoryRepositoryInt
      * @param array $except
      * @return \Illuminate\Support\Collection
      */
-    public function listCategories(string $order = 'id', string $sort = 'desc', $except = [])
+    public function listCategories(string $order = 'id', string $sort = 'desc', $except = []) : Collection
     {
         return $this->model->orderBy($order, $sort)->get()->except($except);
+    }
+
+    /**
+     * List all root categories
+     * 
+     * @param  string $order 
+     * @param  string $sort  
+     * @param  array  $except
+     * @return \Illuminate\Support\Collection  
+     */
+    public function rootCategories(string $order = 'id', string $sort = 'desc', $except = []) : Collection
+    {
+        return $this->model->whereIsRoot()
+                        ->orderBy($order, $sort)
+                        ->get()
+                        ->except($except);
     }
 
     /**
      * Create the category
      *
      * @param array $params
+     *
      * @return Category
      * @throws CategoryInvalidArgumentException
+     * @throws CategoryNotFoundException
      */
     public function createCategory(array $params) : Category
     {
         try {
+
             $collection = collect($params);
             if (isset($params['name'])) {
                 $slug = str_slug($params['name']);
             }
 
-            if (isset($params['cover']) && anInstanceOf(UploadedFile::class)) {
+            if (isset($params['cover']) && ($params['cover'] instanceof UploadedFile)) {
                 $cover = $this->uploadOne($params['cover'], 'categories');
             }
 
@@ -80,7 +100,9 @@ class CategoryRepository extends BaseRepository implements CategoryRepositoryInt
      * Update the category
      *
      * @param array $params
+     *
      * @return Category
+     * @throws CategoryNotFoundException
      */
     public function updateCategory(array $params) : Category
     {
@@ -88,17 +110,28 @@ class CategoryRepository extends BaseRepository implements CategoryRepositoryInt
         $collection = collect($params)->except('_token');
         $slug = str_slug($collection->get('name'));
 
-        if (isset($params['cover']) && anInstanceOf(UploadedFile::class)) {
+        if (isset($params['cover']) && ($params['cover'] instanceof UploadedFile)) {
             $cover = $this->uploadOne($params['cover'], 'categories');
         }
 
         $merge = $collection->merge(compact('slug', 'cover'));
-        if (isset($params['parent'])) {
+
+        // set parent attribute default value if not set
+        $params['parent'] = $params['parent'] ?? 0;
+
+        // If parent category is not set on update
+        // just make current category as root
+        // else we need to find the parent
+        // and associate it as child
+        if ( (int)$params['parent'] == 0) {
+            $category->saveAsRoot();
+        } else {
             $parent = $this->findCategoryById($params['parent']);
             $category->parent()->associate($parent);
         }
 
         $category->update($merge->all());
+        
         return $category;
     }
 
@@ -120,6 +153,7 @@ class CategoryRepository extends BaseRepository implements CategoryRepositoryInt
      * Delete a category
      *
      * @return bool
+     * @throws \Exception
      */
     public function deleteCategory() : bool
     {
@@ -142,11 +176,9 @@ class CategoryRepository extends BaseRepository implements CategoryRepositoryInt
      *
      * @return mixed
      */
-    public function findProducts()
+    public function findProducts() : Collection
     {
-        return collect($this->model->products)->map(function (Product $product) {
-            return $this->transformProduct($product);
-        })->sortByDesc('id');
+        return $this->model->products;
     }
 
     /**
@@ -181,27 +213,17 @@ class CategoryRepository extends BaseRepository implements CategoryRepositoryInt
      * Return the category by using the slug as the parameter
      *
      * @param array $slug
+     *
      * @return Category
+     * @throws CategoryNotFoundException
      */
     public function findCategoryBySlug(array $slug) : Category
     {
         try {
             return $this->findOneByOrFail($slug);
         } catch (ModelNotFoundException $e) {
-            throw new CategoryNotFoundException($e->getMessage());
+            throw new CategoryNotFoundException($e);
         }
-    }
-
-    /**
-     * Find products under a specific category
-     *
-     * @param int $id
-     * @return mixed
-     */
-    public function findProductsInCategory(int $id)
-    {
-        $category = $this->findCategoryById($id);
-        return $category->products;
     }
 
     /**

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <!-- Global site tag (gtag.js) - Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-9325492-23"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ env('GOOGLE_ANALYTICS') }}"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
@@ -14,15 +14,17 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ config('app.name') }}</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <link href="{{ asset('front/css/bootstrap.min.css') }}" rel="stylesheet">
-    <link href="{{ asset('front/style.css') }}" rel="stylesheet">
+    <title>Laracom - Laravel FREE E-Commerce Software</title>
+    <meta name="description" content="Modern open-source e-commerce framework for free">
+    <meta name="tags" content="modern, opensource, open-source, e-commerce, framework, free, laravel, php, php7, symfony, shop, shopping, responsive, fast, software, blade, cart, test driven, adminlte, storefront">
+    <meta name="author" content="Jeff Simons Decena">
+    <link href="{{ asset('css/style.min.css') }}" rel="stylesheet">
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
     <!--[if lt IE 9]>
-    <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
-    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <script src="{{ asset('https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js')}}"></script>
+    <script src="{{ asset('https://oss.maxcdn.com/respond/1.4.2/respond.min.js')}}"></script>
     <![endif]-->
     <link rel="apple-touch-icon" sizes="57x57" href="{{ asset('favicons/apple-icon-57x57.png')}}">
     <link rel="apple-touch-icon" sizes="60x60" href="{{ asset('favicons/apple-icon-60x60.png')}}">
@@ -41,19 +43,27 @@
     <meta name="msapplication-TileColor" content="#ffffff">
     <meta name="msapplication-TileImage" content="{{ asset('favicons/ms-icon-144x144.png')}}">
     <meta name="theme-color" content="#ffffff">
-    @section('css')
-    @show
+    @yield('css')
+    <meta property="og:url" content="{{ request()->url() }}"/>
+    @yield('og')
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="{{ asset('https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js') }}"></script>
 </head>
 <body>
-
+<noscript>
+    <p class="alert alert-danger">
+        You need to turn on your javascript. Some functionality will not work if this is disabled.
+        <a href="https://www.enable-javascript.com/" target="_blank">Read more</a>
+    </p>
+</noscript>
 <section>
-    <div class="row hidden-xs">
+    <div class="hidden-xs">
         <div class="container">
             <div class="clearfix"></div>
             <div class="pull-right">
                 <ul class="nav navbar-nav navbar-right">
                     @if(auth()->check())
-                        <li><a href="{{ route('accounts') }}"><i class="fa fa-home"></i> My Account</a></li>
+                        <li><a href="{{ route('accounts', ['tab' => 'profile']) }}"><i class="fa fa-home"></i> My Account</a></li>
                         <li><a href="{{ route('logout') }}"><i class="fa fa-sign-out"></i> Logout</a></li>
                     @else
                         <li><a href="{{ route('login') }}"> <i class="fa fa-lock"></i> Login</a></li>
@@ -93,7 +103,8 @@
 
 @include('layouts.front.footer')
 
-@section('js')
-@show
+<script src="{{ asset('js/front.min.js') }}"></script>
+<script src="{{ asset('js/custom.js') }}"></script>
+@yield('js')
 </body>
 </html>

@@ -7,20 +7,8 @@
 
     <title>{{ config('app.name') }}</title>
 
-    <!-- Styles -->
-    <link href="{{ asset('css/app.css') }}" rel="stylesheet">
-    <!-- Bootstrap 3.3.6 -->
-    <link rel="stylesheet" href="{{ asset('css/bootstrap.min.css') }}">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="{{ asset('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.5.0/css/font-awesome.min.css') }}">
-    <!-- Ionicons -->
-    <link rel="stylesheet" href="{{ asset('https://cdnjs.cloudflare.com/ajax/libs/ionicons/2.0.1/css/ionicons.min.css') }}">
-    <!-- Theme style -->
-    <link rel="stylesheet" href="{{ asset('css/AdminLTE.min.css') }}">
-    <!-- AdminLTE Skins. Choose a skin from the css/skins
-         folder instead of downloading all of them to reduce the load. -->
-    <link rel="stylesheet" href="{{ asset('css/skins/skin-purple.min.css') }}">
-
+    <link rel="stylesheet" href="{{ asset('css/admin.min.css') }}">
+    @yield('css')
     <link rel="apple-touch-icon" sizes="57x57" href="{{ asset('favicons/apple-icon-57x57.png')}}">
     <link rel="apple-touch-icon" sizes="60x60" href="{{ asset('favicons/apple-icon-60x60.png')}}">
     <link rel="apple-touch-icon" sizes="72x72" href="{{ asset('favicons/apple-icon-72x72.png')}}">
@@ -38,25 +26,23 @@
     <meta name="msapplication-TileColor" content="#ffffff">
     <meta name="msapplication-TileImage" content="{{ asset('favicons/ms-icon-144x144.png')}}">
     <meta name="theme-color" content="#ffffff">
-    <style type="text/css">
-        #search-btn {
-            border: 1px solid #bbb;
-        }
-        #admin-search {
-            margin-bottom: 15px;
-        }
-    </style>
 </head>
 <body class="hold-transition skin-purple sidebar-mini">
+<noscript>
+    <p class="alert alert-danger">
+        You need to turn on your javascript. Some functionality will not work if this is disabled.
+        <a href="https://www.enable-javascript.com/" target="_blank">Read more</a>
+    </p>
+</noscript>
 <!-- Site wrapper -->
 <div class="wrapper">
+    @include('layouts.admin.header', ['user' => $admin])
 
-    @include('layouts.admin.header', ['user' => $user])
-
-    @include('layouts.admin.sidebar', ['user' => $user])
+    @include('layouts.admin.sidebar', ['user' => $admin])
 
     <!-- Content Wrapper. Contains page content -->
     <div class="content-wrapper">
+        @include("layouts.admin.breadcumb")
         @yield('content')
     </div>
     <!-- /.content-wrapper -->
@@ -67,18 +53,9 @@
 </div>
 <!-- ./wrapper -->
 
-<!-- jQuery 2.2.3 -->
-<script src="{{ asset('js/jquery-2.2.3.min.js') }}"></script>
-<!-- Bootstrap 3.3.6 -->
-<script src="{{ asset('js/bootstrap.min.js') }}"></script>
-<!-- SlimScroll -->
-<script src="{{ asset('js/jquery.slimscroll.min.js') }}"></script>
-<!-- FastClick -->
-<script src="{{ asset('js/fastclick.min.js') }}"></script>
-<!-- AdminLTE App -->
-<script src="{{ asset('js/app.min.js') }}"></script>
-<!-- Custom JS -->
-<script src="{{ asset('js/admin.js') }}"></script>
+<script src="{{ asset('js/admin.min.js') }}"></script>
+<script src="{{ asset('//cdn.ckeditor.com/4.8.0/standard/ckeditor.js') }}"></script>
+<script src="{{ asset('js/scripts.js?v=0.2') }}"></script>
 @yield('js')
 </body>
 </html>
